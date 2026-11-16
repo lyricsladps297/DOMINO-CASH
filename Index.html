@@ -1,0 +1,223 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOMINO CASH</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#101820;color:white;
+ font-family:Arial,sans-serif;text-align:center;
+}
+header{
+ background:#087b50;padding:22px;
+ font-size:28px;font-weight:bold;
+ letter-spacing:2px;
+}
+h2{color:#20d99a}
+.panel{
+ background:#1d2b36;margin:15px;
+ padding:15px;border-radius:14px;
+}
+button{
+ background:#08a66b;color:white;
+ border:0;padding:12px;margin:5px;
+ border-radius:9px;font-size:15px;
+ font-weight:bold;
+}
+button:disabled{opacity:.3}
+.tile{
+ display:inline-flex;align-items:center;
+ background:white;color:#111;
+ border:3px solid #222;border-radius:8px;
+ margin:4px;padding:10px 5px;
+ font-size:20px;font-weight:bold;
+ min-width:65px;justify-content:center;
+}
+.selected{border:4px solid #00e69a}
+#board{min-height:75px;overflow-x:auto;white-space:nowrap}
+#message{color:#20d99a;font-weight:bold}
+</style>
+</head>
+<body>
+
+<header>💰 DOMINO CASH</header>
+
+<div class="panel">
+ <h2>Bienvenue dans l'arène</h2>
+ <p>Partie entre amis</p>
+ <p>Jetons virtuels : <b id="coins">1000</b> chacun</p>
+ <button onclick="startGame()">COMMENCER UNE PARTIE</button>
+</div>
+
+<div class="panel">
+ <h2>Table de jeu</h2>
+ <p id="turn">Lance une partie !</p>
+ <p id="message">Bonne chance !</p>
+ <div id="board"></div>
+</div>
+
+<div class="panel">
+ <h2 id="player">Joueur 1</h2>
+ <p>Choisis un domino :</p>
+ <div id="hand"></div>
+ <button id="left" onclick="play('left')" disabled>⬅ Gauche</button>
+ <button id="right" onclick="play('right')" disabled>Droite ➡</button>
+ <button id="draw" onclick="drawTile()" disabled>Piocher</button>
+</div>
+
+<div class="panel">
+ <h2>DOMINO CASH</h2>
+ <p>Deux joueurs • Jetons virtuels</p>
+ <button onclick="startGame()">NOUVELLE PARTIE</button>
+</div>
+
+<script>
+let hands=[[],[]],deck=[],board=[];
+let current=0,selected=null,coins=[1000,1000];
+let started=false;
+
+function shuffle(a){
+ for(let i=a.length-1;i>0;i--){
+  let j=Math.floor(Math.random()*(i+1));
+  [a[i],a[j]]=[a[j],a[i]];
+ }
+ return a;
+}
+
+function startGame(){
+ deck=[];
+ hands=[[],[]];
+ board=[];
+ selected=null;
+ current=0;
+ started=true;
+
+ for(let a=0;a<=6;a++){
+  for(let b=a;b<=6;b++){
+   deck.push({a,b});
+  }
+ }
+ shuffle(deck);
+
+ for(let i=0;i<7;i++){
+  hands[0].push(deck.pop());
+  hands[1].push(deck.pop());
+ }
+ document.getElementById("message").textContent="Que le meilleur gagne !";
+ render();
+}
+
+function ends(){
+ if(board.length===0)return null;
+ return [board[0].a,board[board.length-1].b];
+}
+
+function possible(t,side){
+ if(board.length===0)return true;
+ let e=ends();
+ return side==="left"?
+ (t.a===e[0]||t.b===e[0]):
+ (t.a===e[1]||t.b===e[1]);
+}
+
+function selectTile(i){
+ selected=i;
+ render();
+}
+
+function render(){
+ document.getElementById("coins").textContent=
+ coins[current];
+
+ document.getElementById("player").textContent=
+ "Joueur "+(current+1);
+
+ document.getElementById("turn").textContent=
+ "Au tour du joueur "+(current+1);
+
+ let h=document.getElementById("hand");
+ h.innerHTML="";
+
+ hands[current].forEach((t,i)=>{
+  let b=document.createElement("button");
+  b.className="tile";
+  b.textContent=t.a+" | "+t.b;
+  if(selected===i)b.classList.add("selected");
+  b.onclick=()=>selectTile(i);
+  h.appendChild(b);
+ });
+
+ document.getElementById("board").innerHTML=
+ board.map(t=>'<span class="tile">'+t.a+'|'+t.b+'</span>').join("");
+
+ let valid=selected!==null&&hands[current][selected];
+ document.getElementById("left").disabled=
+ !valid||!possible(valid,"left");
+ document.getElementById("right").disabled=
+ !valid||!possible(valid,"right");
+
+ let canPlay=hands[current].some(t=>
+ possible(t,"left")||possible(t,"right"));
+
+ document.getElementById("draw").disabled=
+ !started||canPlay||deck.length===0;
+
+ if(!canPlay&&deck.length===0){
+  document.getElementById("message").textContent=
+  "Aucun coup possible. Passe ton tour.";
+ }
+}
+
+function play(side){
+ if(selected===null)return;
+ let t=hands[current][selected];
+
+ if(!possible(t,side))return;
+
+ if(board.length===0){
+  board.push(t);
+ }else if(side==="left"){
+  let end=board[0].a;
+  board.unshift(t.b===end?
+   {a:t.a,b:t.b}:{a:t.b,b:t.a});
+ }else{
+  let end=board[board.length-1].b;
+  board.push(t.a===end?
+   {a:t.a,b:t.b}:{a:t.b,b:t.a});
+ }
+
+ hands[current].splice(selected,1);
+ selected=null;
+
+ if(hands[current].length===0){
+  coins[current]+=100;
+  document.getElementById("message").textContent=
+   "🏆 Joueur "+(current+1)+" gagne ! +100 jetons virtuels";
+  started=false;
+  render();
+  return;
+ }
+
+ nextTurn();
+}
+
+function drawTile(){
+ if(deck.length===0)return;
+ hands[current].push(deck.pop());
+ selected=null;
+ document.getElementById("message").textContent=
+ "Tu as pioché un domino.";
+ nextTurn(false);
+}
+
+function nextTurn(change=true){
+ if(change)current=1-current;
+ render();
+}
+
+</script>
+</body>
+</html>
